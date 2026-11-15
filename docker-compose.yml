@@ -1,17 +1,21 @@
 services:
   identity:
-    build:
-      context: .
-      target: development
+    # Imagem local com Node 22 (evita pull da Docker Hub quando o registry timeout).
+    image: tech-challenge-api:latest
+    pull_policy: never
     container_name: identity
     working_dir: /identity
-    command: sh -c "yarn install && yarn start:dev"
+    user: root
+    # Sem --watch: no detached o Node encerra o processo com watch + volume mount.
+    command: sh -c "yarn install --ignore-engines && yarn migrate:up && node -r ts-node/register -r tsconfig-paths/register src/main.ts"
+    restart: unless-stopped
     ports:
       - '3001:3000'
     depends_on:
       postgres:
         condition: service_healthy
     environment:
+      - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/identity
       - JWT_SECRET=${JWT_SECRET:-altere-este-segredo}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
@@ -25,7 +29,7 @@ services:
       - PORT=3000
     volumes:
       - .:/identity
-      - /identity/node_modules
+      - identity_node_modules:/identity/node_modules
 
   postgres:
     image: postgres:16-alpine
@@ -47,3 +51,4 @@ services:
 
 volumes:
   identity-postgresdata:
+  identity_node_modules:
