@@ -1,0 +1,49 @@
+services:
+  identity:
+    build:
+      context: .
+      target: development
+    container_name: identity
+    working_dir: /identity
+    command: sh -c "yarn install && yarn start:dev"
+    ports:
+      - '3001:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/identity
+      - JWT_SECRET=${JWT_SECRET:-altere-este-segredo}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@local.dev}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-admin123}
+      - SEED_ADMIN_NAME=${SEED_ADMIN_NAME:-Admin local}
+      - SERVICE_NAME=identity-service
+      - NEW_RELIC_APP_NAME=${NEW_RELIC_APP_NAME:-identity-service}
+      - NEW_RELIC_LABELS=${NEW_RELIC_LABELS:-service:identity-service;component:identity}
+      - NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED:-false}
+      - PORT=3000
+    volumes:
+      - .:/identity
+      - /identity/node_modules
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: identity-postgres
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: identity
+    volumes:
+      - identity-postgresdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d identity']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  identity-postgresdata:
