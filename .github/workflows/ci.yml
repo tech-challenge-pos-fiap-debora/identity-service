@@ -1,0 +1,63 @@
+name: CI — identity-service
+
+# Gate de qualidade deste microsserviço: unit + integração (Postgres identity) + build.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-identity-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SERVICE_NAME: identity-service
+  NEW_RELIC_ENABLED: 'false'
+  INTEGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/identity
+
+jobs:
+  test:
+    name: Testes + build (identity)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: identity
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d identity"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: yarn
+
+      - name: Instalar dependências
+        run: yarn install --frozen-lockfile
+
+      - name: Testes unitários
+        run: yarn test
+
+      - name: Testes de integração (DB identity)
+        run: yarn test:integration
+
+      - name: Build
+        run: yarn build
+
+      - name: Upload coverage (identity-service)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-service-coverage
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore

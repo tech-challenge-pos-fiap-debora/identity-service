@@ -1,0 +1,112 @@
+name: Publish ECR — identity-service
+
+# Publica as imagens do identity-service (API + migrations) no ECR e dispara
+# o deploy no EKS via infra-kubernetes, com tags dedicadas a este MS.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-ecr-identity
+  cancel-in-progress: false
+
+env:
+  SERVICE_NAME: identity-service
+  AWS_REGION: us-east-1
+  API_REPOSITORY: identity-service
+  MIGRATIONS_REPOSITORY: identity-service-migrations
+  INFRA_REPOSITORY: infra-kubernetes
+
+jobs:
+  publish:
+    name: Build e push (identity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login no ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build e push da imagem da API (identity-service)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: production
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.API_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.API_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build e push da imagem de migrations (identity)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrations
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.MIGRATIONS_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.MIGRATIONS_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Inputs dedicados ao identity; api_image_tag permanece como fallback
+      # enquanto o deploy-prod do infra ainda esperar o nome legado.
+      - name: Disparar deploy no EKS (identity)
+        id: dispatch
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "INFRA_DISPATCH_TOKEN nao configurado."
+            exit 1
+          fi
+          gh workflow run deploy-prod.yml \
+            --repo "${GITHUB_REPOSITORY_OWNER}/${INFRA_REPOSITORY}" \
+            -f service=identity-service \
+            -f identity_image_tag="${GITHUB_SHA}" \
+            -f identity_migrations_image_tag="${GITHUB_SHA}" \
+            -f api_image_tag="${GITHUB_SHA}"
+
+      - name: Resumo
+        run: |
+          {
+            echo "## identity-service — imagens publicadas"
+            echo
+            echo "- \`${API_REPOSITORY}:${GITHUB_SHA}\`"
+            echo "- \`${MIGRATIONS_REPOSITORY}:${GITHUB_SHA}\`"
+            echo
+            echo "Filtro New Relic / logs: \`service = 'identity-service'\`."
+            echo
+            if [ "${{ steps.dispatch.outcome }}" = "success" ]; then
+              echo "Deploy no EKS disparado em \`${INFRA_REPOSITORY}\` (service=identity-service)."
+            else
+              echo "### Deploy no EKS nao foi disparado"
+              echo
+              echo "Rode manualmente:"
+              echo
+              echo '```bash'
+              echo "gh workflow run deploy-prod.yml \\"
+              echo "  --repo ${GITHUB_REPOSITORY_OWNER}/${INFRA_REPOSITORY} \\"
+              echo "  -f service=identity-service \\"
+              echo "  -f identity_image_tag=${GITHUB_SHA} \\"
+              echo "  -f identity_migrations_image_tag=${GITHUB_SHA} \\"
+              echo "  -f api_image_tag=${GITHUB_SHA}"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
