@@ -66,17 +66,26 @@ Regra de negócio: OS (outro serviço) não existe sem cliente e veículo. Um cl
 
 ## Filas
 
-Ainda **não**. O serviço responde por HTTP.
+Ainda **não**. O identity responde por HTTP (`auth`, cliente/veículo get-or-create). Não sobe LocalStack.
 
-Na Saga (order ↔ identity), a ideia futura é fila *ensure/get-or-create* de cliente e veículo — ainda não implementado.
+Lab completo (4 MS + rede `oficina-net`): [`../README.md`](../README.md).
 
-## CI/CD
+```bash
+docker network create oficina-net 2>/dev/null || true   # opcional aqui; os outros MS exigem
+docker compose up -d          # identity :3001, postgres :5433
+```
+
+
+## CI/CD (AWS)
+
+Deploy em **EKS** (sem Kind).
 
 | Workflow | Quando | O que faz |
 |---|---|---|
-| `CI — identity-service` | push/PR | unit + integração (DB `identity`) + build; artifact `identity-service-coverage` |
-| `CD — identity-service (Kind)` | manual | lab Kind com manifests `k8s/identity-*` + smoke `/health` |
-| `Publish ECR — identity-service` | push `main` | push `identity-service` + `identity-service-migrations` no ECR e dispatch no `infra-kubernetes` |
+| `CI — identity-service` | push/PR | unit + integração + build |
+| `Publish ECR — identity-service` | push `main` | push ECR + dispara deploy no `infra-kubernetes` |
+
+Detalhes: [`infra/README.md`](infra/README.md).
 
 ## Observabilidade
 

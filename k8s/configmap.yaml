@@ -12,9 +12,8 @@ data:
   PORT: "3000"
   SERVICE_NAME: identity-service
   JWT_EXPIRES_IN: 1d
-  SEED_ADMIN_EMAIL: admin@local.dev
-  SEED_ADMIN_NAME: Admin
-  # APM: nome da app e labels fixas — filtrar no NRQL por service = 'identity-service'
   NEW_RELIC_APP_NAME: identity-service
   NEW_RELIC_LABELS: service:identity-service;component:identity
   NEW_RELIC_ENABLED: "true"
+  PGSSL: "true"
+  AWS_REGION: us-east-1
