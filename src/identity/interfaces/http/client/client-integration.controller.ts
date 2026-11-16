@@ -29,6 +29,15 @@ export class ClientIntegrationController {
     return ClientResponseDto.toDto(client);
   }
 
+  /** Usado pela lambda-auth (login CPF). Declarado antes de `:id`. */
+  @Get('by-document/:document')
+  async byDocument(
+    @Param('document') document: string,
+  ): Promise<ClientResponseDto> {
+    const client = await this.clients.findByDocument(document);
+    return ClientResponseDto.toDto(client);
+  }
+
   @Get(':id')
   async byId(@Param('id') id: string): Promise<ClientResponseDto | null> {
     const client = await this.clients.findById(id);
