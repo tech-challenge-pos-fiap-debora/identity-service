@@ -1,10 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
+import { EntityNotFoundError } from '../../../../shared/domain/errors';
 import { Client } from '../../../domain/entities/client';
 import { ClientRepositoryInterface } from '../../../domain/repositories/client.repository';
 import { CreateClientUseCase } from './create-client';
 import { DeleteClientUseCase } from './delete-client';
 import { GetAllClientsUseCase } from './get-all-clients';
 import { GetClientUseCase } from './get-client';
+import { GetOrCreateClientUseCase } from './get-or-create-client';
 import { UpdateClientUseCase } from './update-client';
 
 class InMemoryClientRepository implements ClientRepositoryInterface {
@@ -27,7 +29,7 @@ class InMemoryClientRepository implements ClientRepositoryInterface {
 
   findByDocument(document: string): Promise<Client> {
     const c = this.clients.get(document);
-    if (!c) throw new Error('not found');
+    if (!c) throw new EntityNotFoundError('Client not found');
     return Promise.resolve(c);
   }
 
@@ -145,5 +147,25 @@ describe('Client use cases', () => {
       id: expect.any(String),
       document: '52998224725',
     });
+  });
+
+  it('get-or-create retorna existente ou cria novo', async () => {
+    const repository = new InMemoryClientRepository();
+    const useCase = new GetOrCreateClientUseCase(repository);
+    const created = await useCase.execute({
+      name: 'Novo',
+      document: '52998224725',
+      email: 'novo@email.com',
+    });
+    expect(created.document).toBe('52998224725');
+    expect(repository.clients.size).toBe(1);
+
+    const same = await useCase.execute({
+      name: 'Outro nome',
+      document: '52998224725',
+      email: 'outro@email.com',
+    });
+    expect(same.id).toBe(created.id);
+    expect(repository.clients.size).toBe(1);
   });
 });

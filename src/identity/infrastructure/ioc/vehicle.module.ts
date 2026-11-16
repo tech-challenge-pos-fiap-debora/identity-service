@@ -5,8 +5,10 @@ import {
   GetAllVehiclesUseCase,
   GetVehicleUseCase,
   UpdatedVehicleUseCase,
+  GetOrCreateVehicleUseCase,
 } from '../../application/use-case/vehicle';
 import { VehicleController } from '../../interfaces/http/vehicle/vehicle.controller';
+import { VehicleIntegrationController } from '../../interfaces/http/vehicle/vehicle-integration.controller';
 import { IdentityDatabaseModule } from '../database/database.module';
 
 @Module({
@@ -17,8 +19,9 @@ import { IdentityDatabaseModule } from '../database/database.module';
     GetAllVehiclesUseCase,
     GetVehicleUseCase,
     UpdatedVehicleUseCase,
+    GetOrCreateVehicleUseCase,
   ],
-  controllers: [VehicleController],
+  controllers: [VehicleController, VehicleIntegrationController],
   exports: [CreateVehicleUseCase, IdentityDatabaseModule],
 })
 export class VehicleModule {}

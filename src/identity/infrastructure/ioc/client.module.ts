@@ -5,8 +5,10 @@ import {
   GetAllClientsUseCase,
   GetClientUseCase,
   UpdateClientUseCase,
+  GetOrCreateClientUseCase,
 } from '../../application/use-case/client';
 import { ClientController } from '../../interfaces/http/client/client.controller';
+import { ClientIntegrationController } from '../../interfaces/http/client/client-integration.controller';
 import { IdentityDatabaseModule } from '../database/database.module';
 
 @Module({
@@ -17,8 +19,9 @@ import { IdentityDatabaseModule } from '../database/database.module';
     GetClientUseCase,
     UpdateClientUseCase,
     DeleteClientUseCase,
+    GetOrCreateClientUseCase,
   ],
-  controllers: [ClientController],
+  controllers: [ClientController, ClientIntegrationController],
   exports: [CreateClientUseCase, IdentityDatabaseModule],
 })
 export class ClientModule {}

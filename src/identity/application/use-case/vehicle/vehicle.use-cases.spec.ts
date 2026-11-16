@@ -8,6 +8,7 @@ import { PlateVO } from '../../../../shared/domain/value-objects/plate.vo';
 import { CreateVehicleUseCase } from './create-vehicle';
 import { DeleteVehicleUseCase } from './delete-vehicle';
 import { GetAllVehiclesUseCase } from './get-all-vehicles';
+import { GetOrCreateVehicleUseCase } from './get-or-create-vehicle';
 import { GetVehicleUseCase } from './get-vehicle';
 import { UpdatedVehicleUseCase } from './update-vehicle';
 
@@ -66,7 +67,7 @@ class InMemoryVehicleRepository implements VehicleRepositoryInterface {
 
   findByPlate(plate: string): Promise<Vehicle> {
     const v = this.vehicles.get(plateKey(plate));
-    if (!v) throw new Error('not found');
+    if (!v) throw new EntityNotFoundError('Vehicle not found');
     return Promise.resolve(v);
   }
 
@@ -233,5 +234,29 @@ describe('Vehicle use cases', () => {
     await useCase.execute('ABC-1234');
 
     expect(repository.vehicles.has('ABC1234')).toBe(false);
+  });
+
+  it('get-or-create retorna existente ou cria novo', async () => {
+    const repository = new InMemoryVehicleRepository();
+    const useCase = new GetOrCreateVehicleUseCase(repository);
+    const created = await useCase.execute({
+      plate: 'XYZ-9A88',
+      brand: 'Fiat',
+      model: 'Argo',
+      year: 2022,
+      clientId: CLIENT_ID,
+    });
+    expect(created.plate).toBe(plateKey('XYZ-9A88'));
+    expect(repository.vehicles.size).toBe(1);
+
+    const same = await useCase.execute({
+      plate: 'XYZ-9A88',
+      brand: 'Outra',
+      model: 'Outro',
+      year: 2020,
+      clientId: CLIENT_ID,
+    });
+    expect(same.id).toBe(created.id);
+    expect(repository.vehicles.size).toBe(1);
   });
 });
